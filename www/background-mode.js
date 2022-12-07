@@ -468,6 +468,7 @@ exports._defaults = {
     closeIcon:          'power',
     closeTitle:         'Close',
     showWhen:           true,
+    hideBadge:          false,
     visibility:         undefined
 };
 

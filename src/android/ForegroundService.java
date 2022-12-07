@@ -171,6 +171,7 @@ public class ForegroundService extends Service {
         // use channelid for Oreo and higher
         String CHANNEL_ID = "cordova-plugin-background-mode-id";
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            boolean hideBadge = settings.optBoolean("hideBadge", false);
             // The user-visible name of the channel.
             CharSequence name = settings.optString("channelName", "cordova-plugin-background-mode");
             // The user-visible description of the channel.
@@ -179,6 +180,10 @@ public class ForegroundService extends Service {
             int importance = NotificationManager.IMPORTANCE_LOW;
 
             NotificationChannel mChannel = new NotificationChannel(CHANNEL_ID, name, importance);
+
+            if (hideBadge) {
+                mChannel.setShowBadge(false);
+            }
 
             // Configure the notification channel.
             mChannel.setDescription(description);
