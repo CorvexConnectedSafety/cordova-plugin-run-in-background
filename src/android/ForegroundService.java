@@ -37,6 +37,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
@@ -50,6 +51,8 @@ import static android.os.PowerManager.PARTIAL_WAKE_LOCK;
  * when low on memory.
  */
 public class ForegroundService extends Service {
+
+    private static final String TAG = "ForegroundService";
 
     // Fixed ID for the 'foreground' notification
     public static final int NOTIFICATION_ID = -574543954;
@@ -133,11 +136,22 @@ public class ForegroundService extends Service {
         boolean isSilent    = settings.optBoolean("silent", false);
 
         if (!isSilent) {
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-              startForeground(NOTIFICATION_ID, makeNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-          } else {
-              startForeground(NOTIFICATION_ID, makeNotification());
-          }
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(NOTIFICATION_ID, makeNotification(),
+                            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+                } else {
+                    startForeground(NOTIFICATION_ID, makeNotification());
+                }
+            } catch (Exception e) {
+                // Android 14+ enforces a time limit on dataSync foreground services.
+                // When the limit is exhausted, startForeground throws
+                // ForegroundServiceStartNotAllowedException. Gracefully degrade
+                // instead of crashing.
+                Log.w(TAG, "Unable to start foreground service: " + e.getMessage());
+                stopSelf();
+                return;
+            }
         }
 
         PowerManager pm = (PowerManager)getSystemService(POWER_SERVICE);
@@ -160,6 +174,18 @@ public class ForegroundService extends Service {
             wakeLock.release();
             wakeLock = null;
         }
+    }
+
+    /**
+     * Called by the system when the service exceeds the foreground service
+     * time limit (Android 14+ dataSync type). Stop cleanly to avoid
+     * ForegroundServiceDidNotStopInTimeException.
+     */
+    @Override
+    public void onTimeout(int startId) {
+        Log.w(TAG, "Foreground service timeout reached, stopping service");
+        sleepWell();
+        stopSelf();
     }
 
     /**
